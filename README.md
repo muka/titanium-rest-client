@@ -1,7 +1,7 @@
 Titanium HTTP REST client
 ===
 
-Yet another HTTP client wrapper lib
+Yet another titanium HTTP client
 
 
 Usage
@@ -88,6 +88,7 @@ rest.request({
 Customize defaults
 ---
 
+```
 var Client = require('rest').Client
 
 var client = new Client({
@@ -102,7 +103,7 @@ var client = new Client({
     console.warn("Request failed:", err.status, err.statusText)
   }
 })
-
+```
 
 License
 ---
