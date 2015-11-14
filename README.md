@@ -22,6 +22,9 @@ client.post("http://example.com", { data }, function(err, res) {
 Response
 ---
 
+Response object returned by the request. This apply to `error` and `result`.
+On successful request error and raw will be a falsy value
+
 ```
 {
   data: "request response"
@@ -35,6 +38,8 @@ Response
 Methods
 ---
 
+Available methods
+
 `rest.get("url", function(err, res), options)`
 
 `rest.post("url", data, function(err, res), options)`
@@ -44,6 +49,13 @@ Methods
 `rest.put("url", data, function(err, res), options)`
 
 `rest.head("url", function(err, res), options)`
+
+`rest.request(options)`
+
+Options
+---
+
+`options` can be any of the following:
 
 ```
 rest.request({
@@ -87,6 +99,8 @@ rest.request({
 
 Customize defaults
 ---
+
+Create a custom instance of the client to set defaults for every request
 
 ```
 var Client = require('rest').Client
