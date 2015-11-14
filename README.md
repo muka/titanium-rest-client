@@ -59,6 +59,7 @@ Options
 
 ```
 rest.request({
+  url: "https://example.com",
   method: "POST",
   data: "payload data",
   headers: { // custom request headers
