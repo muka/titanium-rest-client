@@ -1,21 +1,309 @@
 /**
-  var options = {
-    method: "POST",
-    url: "http://example.com",
-    data: "{}",
-    headers: { "Authorization": "Bearer abc" }
-    validateCert: true|false,
-    completed: function(err, res) {}
-    success: function(res) {}
-    error: function(err) {}
-  }
-*/
+ * @see https://github.com/muka/titanium-rest-client
+ */
+
+var getPromise = function() {
+
+   /**
+    * Promise implementation based on promiz
+    * https://github.com/zolmeister/promiz
+    * MIT Licensed
+    * Copyright (c) 2014 Zolmeister
+    */
+
+  return (function () {
+
+    var queueId = 1
+    var queue = {}
+    var isRunningTask = false
+
+    function nextTick(fn) {
+      setTimeout(fn, 0)
+    }
+
+    Deferred.resolve = function (value) {
+      if (!(this._d == 1))
+        throw TypeError()
+
+      if (value instanceof Deferred)
+        return value
+
+      return new Deferred(function (resolve) {
+          resolve(value)
+      })
+    }
+
+    Deferred.reject = function (value) {
+      if (!(this._d == 1))
+        throw TypeError()
+
+      return new Deferred(function (resolve, reject) {
+          reject(value)
+      })
+    }
+
+    Deferred.all = function (arr) {
+      if (!(this._d == 1))
+        throw TypeError()
+
+      if (!(arr instanceof Array))
+        return Deferred.reject(TypeError())
+
+      var d = new Deferred()
+
+      function done(e, v) {
+        if (v)
+          return d.resolve(v)
+
+        if (e)
+          return d.reject(e)
+
+        var unresolved = arr.reduce(function (cnt, v) {
+          if (v && v.then)
+            return cnt + 1
+          return cnt
+        }, 0)
+
+        if(unresolved == 0)
+          d.resolve(arr)
+
+        arr.map(function (v, i) {
+          if (v && v.then)
+            v.then(function (r) {
+              arr[i] = r
+              done()
+              return r
+            }, done)
+        })
+      }
+
+      done()
+
+      return d
+    }
+
+    Deferred.race = function (arr) {
+      if (!(this._d == 1))
+        throw TypeError()
+
+      if (!(arr instanceof Array))
+        return Deferred.reject(TypeError())
+
+      if (arr.length == 0)
+        return new Deferred()
+
+      var d = new Deferred()
+
+      function done(e, v) {
+        if (v)
+          return d.resolve(v)
+
+        if (e)
+          return d.reject(e)
+
+        var unresolved = arr.reduce(function (cnt, v) {
+          if (v && v.then)
+            return cnt + 1
+          return cnt
+        }, 0)
+
+        if(unresolved == 0)
+          d.resolve(arr)
+
+        arr.map(function (v, i) {
+          if (v && v.then)
+            v.then(function (r) {
+              done(null, r)
+            }, done)
+        })
+      }
+
+      done()
+
+      return d
+    }
+
+    Deferred._d = 1
+
+
+    /**
+     * @constructor
+     */
+    function Deferred(resolver) {
+      'use strict'
+      if (typeof resolver != 'function' && resolver != undefined)
+        throw TypeError()
+
+      if (typeof this != 'object' || (this && this.then))
+        throw TypeError()
+
+      // states
+      // 0: pending
+      // 1: resolving
+      // 2: rejecting
+      // 3: resolved
+      // 4: rejected
+      var self = this,
+        state = 0,
+        val = 0,
+        next = [],
+        fn, er;
+
+      self['promise'] = self
+
+      self['resolve'] = function (v) {
+        fn = self.fn
+        er = self.er
+        if (!state) {
+          val = v
+          state = 1
+
+          nextTick(fire)
+        }
+        return self
+      }
+
+      self['reject'] = function (v) {
+        fn = self.fn
+        er = self.er
+        if (!state) {
+          val = v
+          state = 2
+
+          nextTick(fire)
+
+        }
+        return self
+      }
+
+      self['_d'] = 1
+
+      self['then'] = function (_fn, _er) {
+        if (!(this._d == 1))
+          throw TypeError()
+
+        var d = new Deferred()
+
+        d.fn = _fn
+        d.er = _er
+        if (state == 3) {
+          d.resolve(val)
+        }
+        else if (state == 4) {
+          d.reject(val)
+        }
+        else {
+          next.push(d)
+        }
+
+        return d
+      }
+
+      self['catch'] = function (_er) {
+        return self['then'](null, _er)
+      }
+
+      var finish = function (type) {
+        state = type || 4
+        next.map(function (p) {
+          state == 3 && p.resolve(val) || p.reject(val)
+        })
+      }
+
+      try {
+        if (typeof resolver == 'function')
+          resolver(self['resolve'], self['reject'])
+      } catch (e) {
+        self['reject'](e)
+      }
+
+      return self
+
+      // ref : reference to 'then' function
+      // cb, ec, cn : successCallback, failureCallback, notThennableCallback
+      function thennable (ref, cb, ec, cn) {
+        if ((typeof val == 'object' || typeof val == 'function') && typeof ref == 'function') {
+          try {
+
+            // cnt protects against abuse calls from spec checker
+            var cnt = 0
+            ref.call(val, function (v) {
+              if (cnt++) return
+              val = v
+              cb()
+            }, function (v) {
+              if (cnt++) return
+              val = v
+              ec()
+            })
+          } catch (e) {
+            val = e
+            ec()
+          }
+        } else {
+          cn()
+        }
+      };
+
+      function fire() {
+
+        // check if it's a thenable
+        var ref;
+        try {
+          ref = val && val.then
+        } catch (e) {
+          val = e
+          state = 2
+          return fire()
+        }
+
+        thennable(ref, function () {
+          state = 1
+          fire()
+        }, function () {
+          state = 2
+          fire()
+        }, function () {
+          try {
+            if (state == 1 && typeof fn == 'function') {
+              val = fn(val)
+            }
+
+            else if (state == 2 && typeof er == 'function') {
+              val = er(val)
+              state = 1
+            }
+          } catch (e) {
+            val = e
+            return finish()
+          }
+
+          if (val == self) {
+            val = TypeError()
+            finish()
+          } else thennable(ref, function () {
+              finish(3)
+            }, finish, function () {
+              finish(state == 1 && 3)
+            })
+
+        })
+      }
+
+
+    }
+    return Deferred
+  })()
+
+}
 
 var Client = function(params) {
 
   params = params || {}
   var lib = {}
   var me = this
+
+  this.Promise = params.Promise || getPromise()
 
   this.logger = params.logger || {
     debug: console.debug,
@@ -26,14 +314,22 @@ var Client = function(params) {
   }
 
   var basicAuthBeforeRequest = function(options) {
+
     if(!options.basicAuth) return
 
     var authstr = options.basicAuth
-    if(options.basicAuth.username) {
-      authstr = options.basicAuth.username+":"+options.basicAuth.password
+
+    if(typeof authstr === "function") {
+      authstr = authstr()
     }
 
-    options.headers['Authorization'] = 'Basic ' + Ti.Utils.base64encode(authstr)
+    if(!authstr) return
+
+    if(authstr.username) {
+      authstr = Ti.Utils.base64encode(authstr.username+":"+authstr.password)
+    }
+
+    options.headers['Authorization'] = 'Basic ' + authstr
   }
 
   var jsonBeforeRequest = function(options) {
@@ -87,6 +383,8 @@ var Client = function(params) {
   var request = lib.request = function(options) {
 
     options = options || {}
+    options = _.extend(params, options)
+
     options.headers = options.headers || {}
 
     var completed = function(err, res) {
@@ -103,56 +401,59 @@ var Client = function(params) {
       };
     }
 
-    var client = Ti.Network.createHTTPClient({
-      // function called when the response data is available
-      onload : function(e) {
-        me.logger.debug('Request loaded')
-        var result = getresult(client);
-        completed(null, result);
-        options.success && options.success(result);
-      },
-      // function called when an error occurs, including a timeout
-      onerror : function(e) {
-        me.logger.debug('Request error')
-        var error = getresult(client, e.error, e);
-        completed(error, null)
-        options.error && options.error(error)
-      },
-      validatesSecureCertificate: options.validateCert || false,
-      timeout : options.timeout || 5000,
-    })
+    return new me.Promise(function(resolve, reject) {
 
-    // Prepare the connection.
-    me.logger.debug('Open client')
-    client.open(options.method.toUpperCase(), options.url);
+      var client = Ti.Network.createHTTPClient({
+        // function called when the response data is available
+        onload : function(e) {
+          me.logger.debug('Request loaded')
+          var result = getresult(client);
+          options.success && options.success(result);
+          resolve(result)
+          completed(null, result);
+        },
+        // function called when an error occurs, including a timeout
+        onerror : function(e) {
+          me.logger.debug('Request error')
+          var error = getresult(client, e.error, e);
+          options.error && options.error(error)
+          reject(error)
+          completed(error, null)
+        },
+        validatesSecureCertificate: options.validateCert || false,
+        timeout : options.timeout || 5000,
+      })
 
-    me.logger.debug('Check if json request')
-    jsonBeforeRequest(options)
+      // Prepare the connection.
+      me.logger.debug('Open client')
+      client.open(options.method.toUpperCase(), options.url);
 
-    me.logger.debug('Check for basic auth')
-    basicAuthBeforeRequest(options)
+      me.logger.debug('Check if json request')
+      jsonBeforeRequest(options)
 
-    var performRequest = function() {
+      me.logger.debug('Check for basic auth')
+      basicAuthBeforeRequest(options)
 
-      me.logger.debug('Call beforeRequest callback')
-      options.beforeRequest && options.beforeRequest(options)
+      var performRequest = function() {
 
-      me.logger.debug('Set headers')
-      if(options.headers) {
-        for(var key in options.headers) {
-          client.setRequestHeader(key, options.headers[key])
+        me.logger.debug('Call beforeRequest callback')
+        options.beforeRequest && options.beforeRequest(options)
+
+        me.logger.debug('Set headers')
+        if(options.headers) {
+          for(var key in options.headers) {
+            client.setRequestHeader(key, options.headers[key])
+          }
         }
+
+        me.logger.debug('Send request')
+        client.send(options.data);
       }
 
-      me.logger.debug('Send request')
-      client.send(options.data);
-    }
-
-    // retrieve token if needed
-    me.logger.debug('Check oauth token')
-    oAuth2BeforeRequest(options, performRequest)
-
-    return client;
+      // retrieve token if needed
+      me.logger.debug('Check oauth token')
+      oAuth2BeforeRequest(options, performRequest)
+    })
   }
 
   var wrap = function(method, url, data, fn, options) {
@@ -187,14 +488,15 @@ var Client = function(params) {
   }
 
   lib.post = function(url, data, fn, options) {
-    return request(wrap('POST', data, null, fn, options))
+    return request(wrap('POST', url, data, fn, options))
   }
 
   lib.put = function(url, data, fn, options) {
-      return request(wrap('PUT', data, null, fn, options))
+      return request(wrap('PUT', url, data, fn, options))
   }
 
   lib.request = request
+  lib.Promise = this.Promise
 
   return lib
 }

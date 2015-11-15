@@ -69,23 +69,29 @@ rest.request({
   // allow untrusted certificates, like self-signed
   validateCert: false,
 
-  // callback
-  completed: function(err, res) {}
-
   // optional parameters
 
   // called on success only
   success: function(res) {}
+
   // called on error only
   error: function(err) {}
+
+  // always callsed after completion
+  completed: function(err, res) {}
 
   json: true, // handle json request/response. result.data will contain a json object
 
   // use basic authentication
-  basicAuth: { // can be a string like user:pass
+  basicAuth: {
     username: "user",
     password: "pass"
   },
+  // or a string base64 encoded
+  basicAuth: Ti.Utils.base64encode("user:pass"),
+
+  // or function returning an object or string like above
+  basicAuth: function() { return Ti.Utils.base64encode("user:pass") },
 
   // use oauth2 Bearer token. Must be a callback
   oauth2: function(then) {
@@ -93,9 +99,38 @@ rest.request({
     // var accessToken = ...
     // continue with request calling callback
     then(accessToken)
-  }
+  },
+
+  // a Promise spec implementation alternative to the integrated one
+  // Promise: require('bluebird'),
+
+  // A logger implementation. Expect a console like interface (eg. debug, log, info, warn, error)
+  logger: console,
 
 })
+```
+
+Promise support
+---
+
+Request will return Promise, based on `zolmeister/promiz` implementation by Zolmeister
+
+An alternative Promise implementation can be provided with `options.Promise`
+
+(Unluckly Promises will make debugging near to impossible)
+
+```
+client.get("http://example.com")
+  .then(function(res) {
+    console.log("Success!", res)
+    return client.Promise.resolve(res.data === 42)
+  })
+  .then(function(correct) {
+    correct && console.info("correct question")
+  })
+  .catch(function(err) {
+    console.error(err)
+  })
 ```
 
 Customize defaults
@@ -122,4 +157,6 @@ var client = new Client({
 
 License
 ---
-MIT
+The MIT License
+
+Copyright (c) 2015 Luca Capra <luca.capra@gmail.com>
