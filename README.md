@@ -70,7 +70,12 @@ rest.request({
   validateCert: false,
 
   // optional parameters
-
+  
+  // called synchronously just before the request
+  onRequest: function(options) { 
+    options.url = transformUrl(options.url)
+  },
+  
   // called on success only
   success: function(res) {}
 
