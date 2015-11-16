@@ -61,8 +61,11 @@ Options
 rest.request({
   url: "https://example.com",
   method: "POST",
-  data: "payload data",
-  headers: { // custom request headers
+  data: {payload: "data"},
+  timeout: 5000,
+  
+  // custom request headers
+  headers: { 
     "x-custom": "header val"
   },
 
@@ -71,9 +74,15 @@ rest.request({
 
   // optional parameters
   
-  // called synchronously just before the request
-  onRequest: function(options) { 
+  // called synchronously before opening the request connection
+  beforeRequest: function(options) {
     options.url = transformUrl(options.url)
+  },
+  
+  // called synchronously before sending the request
+  // xhr is the native titanium http client
+  onRequest: function(xhr, options) { 
+    
   },
   
   // called on success only
