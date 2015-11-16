@@ -366,6 +366,7 @@ var Client = function(params) {
     var token = options.oauth2
 
     if(!token || typeof token !== 'function') {
+      me.logger.debug('Skip oAuth token')
       return fn && fn()
     }
 
@@ -386,6 +387,9 @@ var Client = function(params) {
     options = _.extend(params, options)
 
     options.headers = options.headers || {}
+
+    options.qs = options.qs !== undefined ? options.qs :
+      (['GET','DELETE', 'HEAD'].indexOf(options.method.toUpperCase()) > -1)
 
     var completed = function(err, res) {
       options.completed && options.completed(err, res);
@@ -424,8 +428,18 @@ var Client = function(params) {
         timeout : options.timeout || 5000,
       })
 
+      options.onRequest && options.onRequest(options)
+
       // Prepare the connection.
       me.logger.debug('Open client')
+
+      if(options.qs) {
+        var qsparts = Object.keys(options.data).map(function(key) {
+          return encodeURIComponent(key) + "=" + encodeURIComponent(options.data[key])
+        })
+        options.url += "?" + qsparts.join("&")
+      }
+
       client.open(options.method.toUpperCase(), options.url);
 
       me.logger.debug('Check if json request')
@@ -447,7 +461,7 @@ var Client = function(params) {
         }
 
         me.logger.debug('Send request')
-        client.send(options.data);
+        client.send(options.qs ? null : options.data);
       }
 
       // retrieve token if needed
@@ -460,11 +474,14 @@ var Client = function(params) {
 
     options = options || {}
 
+    if(typeof data === 'function') {
+      options.completed = fn;
+    }
+
     if(typeof fn === 'object') {
       options = fn;
     }
-
-    if(typeof fn === 'function') {
+    else if(typeof fn === 'function') {
       options.completed = fn;
     }
 
@@ -475,16 +492,16 @@ var Client = function(params) {
     return options;
   }
 
-  lib.get = function(url, fn, options) {
-    return request(wrap('GET', url, null, fn, options))
+  lib.get = function(url, params, fn, options) {
+    return request(wrap('GET', url, params, fn, options))
   }
 
-  lib.delete = function(url, fn, options) {
-    return request(wrap('DELETE', url, null, fn, options))
+  lib.delete = function(url, params, fn, options) {
+    return request(wrap('DELETE', url, params, fn, options))
   }
 
-  lib.head = function(url, fn, options) {
-    return request(wrap('HEAD', url, null, fn, options))
+  lib.head = function(url, params, fn, options) {
+    return request(wrap('HEAD', url, params, fn, options))
   }
 
   lib.post = function(url, data, fn, options) {
