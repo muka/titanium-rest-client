@@ -315,7 +315,9 @@ var Client = function(params) {
 
   var basicAuthBeforeRequest = function(options) {
 
-    if(!options.basicAuth) return
+    if(!options.basicAuth) {
+      return
+    }
 
     var authstr = options.basicAuth
 
@@ -329,7 +331,7 @@ var Client = function(params) {
       authstr = Ti.Utils.base64encode(authstr.username+":"+authstr.password)
     }
 
-    options.headers['Authorization'] = 'Basic ' + authstr
+    options.headers['authorization'] = 'Basic ' + authstr
   }
 
   var jsonBeforeRequest = function(options) {
@@ -376,7 +378,7 @@ var Client = function(params) {
         options.headers['authorization'] = accessToken.toString()
       }
       me.logger.debug('Empty oAuth token?')
-      return fn && fn()
+      fn && fn()
     })
 
   }
@@ -384,9 +386,10 @@ var Client = function(params) {
   var request = lib.request = function(options) {
 
     options = options || {}
-    options = _.extend(params, options)
+    options = _.extend({}, params, options)
 
     options.headers = options.headers || {}
+    options.oauth2 = options.oauth2 === undefined ? params.oauth2 : options.oauth2
 
     var completed = function(err, res) {
       options.completed && options.completed(err, res);
@@ -425,7 +428,10 @@ var Client = function(params) {
         timeout : options.timeout || 5000,
       })
 
-      options.onRequest && options.onRequest(options)
+      if(options.onRequest) {
+        me.logger.debug('Call onRequest callback')
+        options.onRequest(options)
+      }
 
       me.logger.debug("Requesting "+ options.method +" "+ options.url);
       client.open(options.method.toUpperCase(), options.url);
@@ -438,8 +444,10 @@ var Client = function(params) {
 
       var performRequest = function() {
 
-        me.logger.debug('Call beforeRequest callback')
-        options.beforeRequest && options.beforeRequest(options)
+        if(options.beforeRequest) {
+          me.logger.debug('Call beforeRequest callback')
+          options.beforeRequest(options)
+        }
 
         me.logger.debug('Set headers')
         if(options.headers) {
