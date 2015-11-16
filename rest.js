@@ -428,9 +428,9 @@ var Client = function(params) {
         timeout : options.timeout || 5000,
       })
 
-      if(options.onRequest) {
-        me.logger.debug('Call onRequest callback')
-        options.onRequest(options)
+      if(options.beforeRequest) {
+        me.logger.debug('Call beforeRequest callback')
+        options.beforeRequest(options)
       }
 
       me.logger.debug("Requesting "+ options.method +" "+ options.url);
@@ -444,16 +444,16 @@ var Client = function(params) {
 
       var performRequest = function() {
 
-        if(options.beforeRequest) {
-          me.logger.debug('Call beforeRequest callback')
-          options.beforeRequest(options)
-        }
-
         me.logger.debug('Set headers')
         if(options.headers) {
           for(var key in options.headers) {
             client.setRequestHeader(key, options.headers[key])
           }
+        }
+
+        if(options.onRequest) {
+          me.logger.debug('Call onRequest callback')
+          options.onRequest(xhr, options)
         }
 
         me.logger.debug('Send request')
