@@ -462,11 +462,17 @@ var Client = function(params) {
 
     options = options || {}
 
+    options.completed = fn;
+
     if(typeof fn === 'object') {
       options = fn;
+      options.completed = null;
     }
 
-    options.completed = fn;
+    if(typeof data === 'function') {
+      options.completed = data;
+    }
+
     options.method = method
     options.url = url
     if(data) options.data = data
