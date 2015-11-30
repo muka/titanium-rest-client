@@ -395,13 +395,21 @@ var Client = function(params) {
       options.completed && options.completed(err, res);
     }
 
-    var getresult = function(client, err, raw) {
+    var getresult = function(client, err, errRaw) {
       return {
         data: client.responseText,
         status: client.status,
         statusText: client.statusText,
         error: err ? err : false,
-        raw: raw,
+        getError: function() {
+          return errRaw
+        },
+        getHeader: function(k) {
+          return client.getResponseHeader(k)
+        },
+        getClient: function() {
+          return client
+        },
       };
     }
 
