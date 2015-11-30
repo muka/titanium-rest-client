@@ -26,6 +26,8 @@ Response object returned by the request. This apply to `error` and `result`.
 On successful request `error` and `raw` will be a falsy value
 
 ```
+console.log(repsonse)
+
 {
   data: "request response"
   status: "<status code>",
@@ -33,6 +35,11 @@ On successful request `error` and `raw` will be a falsy value
   error: "string error message or false",
   raw: "raw error message",
 }
+
+response.getError() // get the raw error obj
+response.getClient() // get titanium client
+response.getHeader("x-foo") // get an http header
+
 ```
 
 Methods
