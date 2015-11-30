@@ -23,7 +23,7 @@ Response
 ---
 
 Response object returned by the request. This apply to `error` and `result`.
-On successful request `error` and `raw` will be a falsy value
+On successful request `error`will be a falsy value
 
 ```
 console.log(repsonse)
@@ -32,8 +32,7 @@ console.log(repsonse)
   data: "request response"
   status: "<status code>",
   statusText: "<status text>",
-  error: "string error message or false",
-  raw: "raw error message",
+  error: "string error message or false"
 }
 
 response.getError() // get the raw error obj
